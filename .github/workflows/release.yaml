@@ -17,6 +17,8 @@ jobs:
         include:
           - { goos: linux, goarch: amd64 }
           - { goos: linux, goarch: arm64 }
+          # mipsel soft-float — роутеры (Keenetic, old ASUS и т.п.)
+          - { goos: linux, goarch: mipsle, gomips: softfloat }
           - { goos: windows, goarch: amd64 }
           - { goos: darwin, goarch: amd64 }
           - { goos: darwin, goarch: arm64 }
@@ -32,6 +34,7 @@ jobs:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          GOMIPS: ${{ matrix.gomips }}
         run: |
           BIN=warpscout
           [ "$GOOS" = windows ] && BIN=warpscout.exe
