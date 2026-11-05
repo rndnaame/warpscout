@@ -1,6 +1,6 @@
 # The WARP account
 
-[← Back to README](../../README.md)
+[← Back to README](../../README_en.md)
 
 ```sh
 warpscout register

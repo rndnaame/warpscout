@@ -1,6 +1,6 @@
 # Решение проблем
 
-[← Назад к README](../../README_RU.md)
+[← Назад к README](../../README.md)
 
 ## `ENDPOINT PING` показывает `?`
 

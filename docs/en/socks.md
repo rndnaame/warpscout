@@ -1,6 +1,6 @@
 # SOCKS5 proxy
 
-[← Back to README](../../README.md)
+[← Back to README](../../README_en.md)
 
 > [!WARNING]
 > This command is for testing an endpoint, not for everyday use. `socks` brings up one tunnel and holds it: there is no reconnect and no failover, so once the tunnel drops the proxy stops working. It will not survive a network change either

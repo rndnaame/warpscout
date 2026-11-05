@@ -2,7 +2,7 @@
 
 ![WARPSCOUT multi-node](.github/assets/warpscout-multi-node.png)
 
-<p align="center">Find Cloudflare WARP endpoints that work from your network, and see where they exit.</p>
+<p align="center">Поиск эндпоинтов Cloudflare WARP, которые работают из вашей сети, и проверка того, где они выходят.</p>
 
 <p align="center">
   <a href="https://github.com/vernette/warpscout/releases"><img src="https://img.shields.io/github/release/vernette/warpscout.svg" alt="GitHub Release"></a>
@@ -13,55 +13,55 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
-<p align="center">Documentation: 🇬🇧 English &middot; <a href="README_RU.md">🇷🇺 Русский</a></p>
+<p align="center">Документация: 🇷🇺 Русский &middot; <a href="README_en.md">🇬🇧 English</a></p>
 
-## Contents
+## Содержание
 
-- [What it is](#what-it-is)
-- [Installation](#installation)
-- [Quick start](#quick-start)
-- [Reading the table](#reading-the-table)
-- [If nothing works](#if-nothing-works)
-- [Commands](#commands)
-- [Useful flags](#useful-flags)
-- [Going further](#going-further)
-- [Credits](#credits)
-- [Support the author](#support-the-author)
+- [Что это](#что-это)
+- [Установка](#установка)
+- [Быстрый старт](#быстрый-старт)
+- [Как читать таблицу](#как-читать-таблицу)
+- [Если ничего не нашлось](#если-ничего-не-нашлось)
+- [Команды](#команды)
+- [Полезные флаги](#полезные-флаги)
+- [Что дальше](#что-дальше)
+- [Благодарности](#благодарности)
+- [Поддержать автора](#поддержать-автора)
 
-## What it is
+## Что это
 
-Cloudflare WARP has thousands of endpoint addresses, and the one you connect to decides which Cloudflare edge node (colo) your tunnel lands on. That matters: since April 2026 traffic through the Moscow node `DME` is filtered by DPI, and some sites simply do not open through it even though WARP itself connects fine. The same config pointed at an endpoint on a foreign node works without that problem.
+У Cloudflare WARP тысячи адресов эндпоинтов, и от того, к какому из них вы подключились, зависит, на какой пограничный узел (ноду) Cloudflare попадёт туннель. Это важно: с апреля 2026 года трафик через московскую ноду `DME` фильтруется DPI, часть сайтов через неё просто не открывается, хотя сам WARP подключается нормально. Тот же конфиг, направленный на эндпоинт с зарубежной нодой, работает без этой проблемы.
 
-The official WARP client gives you no way to pick the node. WARPSCOUT walks the endpoint addresses, shows the node and exit region for each one, and writes a ready-to-import config for the best of them.
+В официальном клиенте WARP выбрать ноду нельзя. WARPSCOUT перебирает адреса эндпоинтов, показывает для каждого ноду и регион выхода, и отдаёт готовый конфиг для лучшего из них.
 
-- A single file, nothing to install
-- No admin rights and no TUN device
-- Windows, Linux, macOS, Android and Docker
-- A live table while scanning, plus a report file on disk
+- Один файл, ничего устанавливать не нужно
+- Без прав администратора и без TUN-устройства
+- Windows, Linux, macOS, Android и Docker
+- Живая таблица во время скана и файл отчёта на диск
 
-## Installation
+## Установка
 
 ### Windows
 
-1. Open the [releases page](https://github.com/vernette/warpscout/releases) and download `warpscout_..._windows_amd64.zip`.
-2. Unpack it anywhere, for example into `C:\warpscout`.
-3. Open that folder, hold **Shift** and right-click empty space → **Open PowerShell window here** (on Windows 11 - **Open in Terminal**).
-4. Check that it runs:
+1. Откройте [страницу релизов](https://github.com/vernette/warpscout/releases) и скачайте `warpscout_..._windows_amd64.zip`.
+2. Распакуйте архив в любую папку, например `C:\warpscout`.
+3. Откройте эту папку в проводнике, зажмите **Shift** и нажмите правой кнопкой мыши по пустому месту → **Открыть окно PowerShell здесь** (в Windows 11 - **Открыть в терминале**).
+4. Проверьте, что всё работает:
 
 ```powershell
 .\warpscout.exe version
 ```
 
-Every command below goes into that same window.
+Дальше все команды из этого README вводятся в это же окно.
 
 > [!NOTE]
-> If Windows complains about the downloaded file, right-click `warpscout.exe` → Properties → tick **Unblock** at the bottom
+> Если Windows ругается на скачанный файл, нажмите правой кнопкой по `warpscout.exe` → Свойства → внизу галочка **Разблокировать**
 
 ### Android
 
-The easiest way is the ready-made app [openwarpkit/warpscout-android](https://github.com/openwarpkit/warpscout-android) by [OpenWarpKit](https://github.com/openwarpkit). Grab the APK for your architecture from its [releases page](https://github.com/openwarpkit/warpscout-android/releases).
+Проще всего - готовое приложение [openwarpkit/warpscout-android](https://github.com/openwarpkit/warpscout-android) от [OpenWarpKit](https://github.com/openwarpkit). APK под свою архитектуру берите на [странице релизов](https://github.com/openwarpkit/warpscout-android/releases).
 
-In Termux the one-line install below works as it does on Linux.
+В Termux работает установка одной командой, как для Linux ниже.
 
 ### Linux, macOS, OpenWrt, Termux
 
@@ -69,35 +69,35 @@ In Termux the one-line install below works as it does on Linux.
 curl -fsSL https://raw.githubusercontent.com/vernette/warpscout/master/install.sh | sh
 ```
 
-If there is no `curl` (OpenWrt routers, for one):
+Если `curl` нет (например, на OpenWrt):
 
 ```sh
 wget -qO- https://raw.githubusercontent.com/vernette/warpscout/master/install.sh | sh
 ```
 
-The script picks the right archive for your system and puts `warpscout` into `~/.local/bin`, on OpenWrt into `/usr/bin`, in Termux into `$PREFIX/bin`. Run it again to update.
+Скрипт подберёт архив под вашу систему и положит `warpscout` в `~/.local/bin`, на OpenWrt - в `/usr/bin`, в Termux - в `$PREFIX/bin`. Для обновления просто запустите его ещё раз.
 
 > [!NOTE]
-> **macOS only.** The first run is blocked because the file came from the internet. Clear the flag once: `xattr -d com.apple.quarantine warpscout`
+> **Только для macOS.** Первый запуск блокируется, потому что файл скачан из интернета. Снимите этот флаг один раз: `xattr -d com.apple.quarantine warpscout`
 
-### Other ways
+### Другие способы
 
-Arch Linux (AUR, packaged by [Nebulosa](https://aur.archlinux.org/account/Nebulosa), not maintained by this repository):
+Arch Linux (AUR, пакет собрал [Nebulosa](https://aur.archlinux.org/account/Nebulosa), этот репозиторий его не сопровождает):
 
 ```sh
-paru -S warpscout      # build from source
-paru -S warpscout-bin  # prebuilt release binary
+paru -S warpscout      # сборка из исходников
+paru -S warpscout-bin  # готовый бинарник из релиза
 ```
 
-Docker - see [running in Docker](docs/en/docker.md).
+Docker - см. [запуск в Docker](docs/ru/docker.md).
 
-From source, Go 1.25 or newer:
+Сборка из исходников, Go 1.25 или новее:
 
 ```sh
 go install github.com/vernette/warpscout@latest
 ```
 
-Installer options go after `sh -s --`, and `INSTALL_DIR` picks another directory:
+Опции установщика передаются после `sh -s --`, а каталог выбирает `INSTALL_DIR`:
 
 ```sh
 INSTALL_DIR=/usr/local/bin sh -c "$(curl -fsSL https://raw.githubusercontent.com/vernette/warpscout/master/install.sh)"
@@ -106,194 +106,194 @@ curl -fsSL https://raw.githubusercontent.com/vernette/warpscout/master/install.s
 curl -fsSL https://raw.githubusercontent.com/vernette/warpscout/master/install.sh | sh -s -- --uninstall
 ```
 
-If you want a specific archive by hand, here is what to take:
+Если нужен конкретный архив вручную, вот таблица соответствия:
 
-| Your OS                                | File                   |
+| Ваша ОС                                | Файл                   |
 | -------------------------------------- | ---------------------- |
 | Windows                                | `windows_amd64.zip`    |
-| Mac on Apple silicon                   | `darwin_arm64.tar.gz`  |
-| Mac on Intel                           | `darwin_amd64.tar.gz`  |
-| Linux, regular PC or server            | `linux_amd64.tar.gz`   |
-| Linux on ARM (Raspberry Pi, some VPS)  | `linux_arm64.tar.gz`   |
-| OpenWrt router, x86_64                 | `linux_amd64.tar.gz`   |
-| OpenWrt router, ARM64                  | `linux_arm64.tar.gz`   |
-| Android, in Termux                     | `android_arm64.tar.gz` |
+| Mac на Apple silicon                   | `darwin_arm64.tar.gz`  |
+| Mac на процессоре Intel                | `darwin_amd64.tar.gz`  |
+| Linux, обычный ПК или сервер           | `linux_amd64.tar.gz`   |
+| Linux на ARM (Raspberry Pi, часть VPS) | `linux_arm64.tar.gz`   |
+| Роутер с OpenWrt, x86_64               | `linux_amd64.tar.gz`   |
+| Роутер с OpenWrt, ARM64                | `linux_arm64.tar.gz`   |
+| Android, в Termux                      | `android_arm64.tar.gz` |
 
-## Quick start
+## Быстрый старт
 
-The examples are written for Windows. On Linux, macOS and Termux type `warpscout` instead of `.\warpscout.exe`.
+Примеры написаны для Windows. На Linux, macOS и в Termux вместо `.\warpscout.exe` пишите `warpscout`.
 
-### Step 1. Create a WARP account
+### Шаг 1. Создать аккаунт WARP
 
 ```powershell
 .\warpscout.exe register
 ```
 
-This writes `warpscout-account.json` next to the binary. You do it once - without that file scanning will not start. Details in [the WARP account](docs/en/account.md).
+Команда создаст рядом с программой файл `warpscout-account.json`. Делается один раз, без него сканирование не запустится. Подробности - в [аккаунте WARP](docs/ru/account.md).
 
-### Step 2. Scan the endpoints
+### Шаг 2. Просканировать эндпоинты
 
 ```powershell
 .\warpscout.exe scan -p awg -P
 ```
 
-- `-p awg` is AmneziaWG, obfuscated WireGuard. On filtering networks plain WireGuard (`-p wg`) usually gets through nowhere at all, so start with `awg` right away.
-- `-P` additionally measures latency and packet loss **inside** the tunnel. The scan takes longer, but endpoints that connect and then pass nothing are weeded out.
+- `-p awg` - протокол AmneziaWG, замаскированный WireGuard. В России и других сетях с фильтрацией обычный WireGuard (`-p wg`) чаще всего не проходит вообще, поэтому начинать стоит сразу с `awg`.
+- `-P` - дополнительно измерить задержку и потери пакетов **внутри** туннеля. Скан идёт дольше, зато отсеиваются эндпоинты, которые подключаются, но не работают.
 
-A scan takes a couple of minutes. The result is a table sorted so that the best endpoint is on top.
+Скан занимает пару минут. Результат - таблица, отсортированная так, что лучший эндпоинт сверху.
 
-![WARPSCOUT scan with -tun-ping](.github/assets/warpscout-tun-ping.png)
+![Скан WARPSCOUT с -tun-ping](.github/assets/warpscout-tun-ping.png)
 
-### Step 3. Pick an endpoint
+### Шаг 3. Выбрать эндпоинт
 
-Look at the `NODE` column. Any row will do where the node is **not** `DME`, loss (`LOSS`) is `0%`, and the ping is on the lower side.
+Смотрите на колонку `NODE`. Подойдёт любая строка, где нода **не** `DME`, потери (`LOSS`) равны `0%`, а пинг поменьше.
 
-To skip picking by hand, let the tool do it. `-exclude-node DME` drops the Moscow node and `-best` prints the single best address:
+Чтобы не выбирать вручную, отдайте это программе. Флаг `-exclude-node DME` выбрасывает московскую ноду, а `-best` печатает единственный лучший адрес:
 
 ```powershell
 .\warpscout.exe scan -p awg -P -exclude-node DME -best
 # 188.114.98.58:2408
 ```
 
-Or the other way round - keep only the countries or nodes you want:
+Можно наоборот - оставить только нужные страны или ноды:
 
 ```powershell
 .\warpscout.exe scan -p awg -P -country DE,NL -best
 .\warpscout.exe scan -p awg -P -node HEL,ARN -best
 ```
 
-### Step 4. Get a config
+### Шаг 4. Получить конфиг
 
-`-conf` writes a ready config for the best endpoint straight away:
+`-conf` сразу пишет готовый конфиг для лучшего эндпоинта:
 
 ```powershell
 .\warpscout.exe scan -p awg -P -exclude-node DME -conf warp.conf
 ```
 
-Import `warp.conf` into the [AmneziaWG](https://amnezia.org/) client (Windows, Android, Linux, macOS) like any other config. If you scanned with `-p wg`, you get a plain WireGuard config.
+Файл `warp.conf` импортируется в клиент [AmneziaWG](https://amnezia.org/) (Windows, Android, Linux, macOS) как обычный конфиг. Если сканировали с `-p wg`, получится обычный конфиг WireGuard.
 
-Other formats (mihomo, usque), DNS, MTU and routing are covered in [configs and filters](docs/en/configs.md).
+Другие форматы (mihomo, usque), DNS, MTU и маршруты - в разделе [конфиги и фильтры](docs/ru/configs.md).
 
-## Reading the table
+## Как читать таблицу
 
-| Column          | What it means                                                                                    |
-| --------------- | -------------------------------------------------------------------------------------------------- |
-| `SEEN AS`       | The country websites will think you are in if you route traffic through this endpoint                |
-| `NODE`          | The Cloudflare edge node the tunnel landed on, as an airport code (`FRA`, `ARN`, `DME`)              |
-| `NODE LOCATION` | Where that node sits, city and country                                                               |
-| `ENDPOINT PING` | A plain ping to the endpoint address. It only tells you how far the address is                       |
-| `TUN PING`      | Latency **inside** the tunnel, to `1.1.1.1`. Appears with `-P`                                       |
-| `LOSS`          | Packet loss inside the tunnel. Appears with `-P`                                                     |
-| `SPEED`         | Download speed inside the tunnel. Appears with `-speed`                                              |
+| Колонка         | Что означает                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `SEEN AS`       | Страна, в которой вас будут считать находящимся сайты, если пустить трафик через этот эндпоинт |
+| `NODE`          | Пограничный узел Cloudflare, на который попал туннель, кодом аэропорта (`FRA`, `ARN`, `DME`)   |
+| `NODE LOCATION` | Город и страна этого узла                                                                      |
+| `ENDPOINT PING` | Обычный пинг до адреса эндпоинта. Показывает только то, насколько адрес далеко                 |
+| `TUN PING`      | Задержка **внутри** туннеля, до `1.1.1.1`. Появляется с `-P`                                   |
+| `LOSS`          | Потери пакетов внутри туннеля. Появляется с `-P`                                               |
+| `SPEED`         | Скорость скачивания внутри туннеля. Появляется с `-speed`                                      |
 
-`SEEN AS` and `NODE LOCATION` are different things: a tunnel can go through Frankfurt and still exit as Russia. `SEEN AS` answers "which country will websites see", `NODE` answers "through which node, and which filtering, does the traffic go".
+`SEEN AS` и `NODE LOCATION` - разные вещи: туннель может идти через Франкфурт и всё равно выходить как Россия. `SEEN AS` отвечает на вопрос "какую страну увидят сайты", `NODE` - "через какой узел и какую фильтрацию идёт трафик".
 
-One subnet can hand out several different nodes, so rows with similar addresses but different nodes are perfectly normal.
+Одна и та же подсеть может раздавать разные ноды, поэтому строк с одинаковым началом адреса, но разными нодами - это нормально.
 
-Besides the on-screen table the tool writes a report file, `warpscout-report-<timestamp>.txt`, with every endpoint it found. `-no-report` turns it off.
+Кроме таблицы на экране программа пишет файл отчёта `warpscout-report-<дата>.txt` со всеми найденными эндпоинтами. Отключается флагом `-no-report`.
 
-## If nothing works
+## Если ничего не нашлось
 
-Go down the list, running the scan again at each step.
+Идите по списку сверху вниз, на каждом шаге запуская скан заново.
 
-1. **A `-p wg` scan finds nothing, or every endpoint ends up in the `torn down` list.** That is expected on a filtering network. Use `-p awg`.
+1. **Скан с `-p wg` ничего не нашёл или все эндпоинты в списке `torn down`.** Так и должно быть в фильтрующей сети. Используйте `-p awg`.
 
-2. **`-p awg` finds nothing either.** Change the fake first packet the connection opens with:
+2. **`-p awg` тоже ничего не находит.** Поменяйте поддельный первый пакет, которым открывается соединение:
 
    ```powershell
    .\warpscout.exe scan -p awg -P -gen-i1 quic
    ```
 
-   Instead of `quic` you can try `dns`, `sip`, `stun`, `random`. This is usually what helps.
+   Вместо `quic` можно пробовать `dns`, `sip`, `stun`, `random`. Обычно помогает именно это.
 
-3. **No `-gen-i1` profile helped.** Let the tool search for working obfuscation parameters. It rescans until it finds a working set, then prints a ready-to-run command:
+3. **Не помог ни один вариант `-gen-i1`.** Запустите автоматический подбор параметров маскировки. Команда будет сканировать заново, пока не найдёт рабочий набор, и в конце напечатает готовую строку для запуска:
 
    ```powershell
    .\warpscout.exe find-junk -gen-i1 random
    ```
 
-   More in [getting past blocking](docs/en/blocking.md).
+   Подробнее - в разделе [обход блокировок](docs/ru/blocking.md).
 
-4. **AmneziaWG does not get through at all.** Try MASQUE, Cloudflare's second transport - over TCP it looks like ordinary HTTPS:
+4. **AmneziaWG не проходит совсем.** Попробуйте MASQUE - второй транспорт Cloudflare, поверх TCP он выглядит как обычный HTTPS:
 
    ```powershell
    .\warpscout.exe find-sni -p masque-h2
    .\warpscout.exe scan -p masque-h2 -masque-sni www.apple.com
    ```
 
-   More in [MASQUE](docs/en/masque.md).
+   Подробнее - в разделе [MASQUE](docs/ru/masque.md).
 
-### What `torn down` means
+### Что такое `torn down`
 
-Some endpoints land in a separate `torn down` list instead of the working ones. Those connected and passed data at first, and were then cut mid-stream - that is what DPI does to a tunnel it does not like. In everyday use it looks like a VPN that connects, works for a few seconds and hangs for good.
+Часть эндпоинтов попадает в отдельный список `torn down` вместо рабочих. Это эндпоинты, которые сначала подключились и передавали данные, а потом были оборваны посреди передачи - так поступает DPI с туннелем, который ему не понравился. В реальном использовании это выглядит как VPN, который подключается, работает несколько секунд и намертво зависает.
 
-Only `-P` can see this. Without it the same endpoints look perfectly fine:
+Увидеть такое можно только с флагом `-P`. Без него те же эндпоинты выглядят полностью рабочими:
 
-![WARPSCOUT wg scan without -tun-ping](.github/assets/warpscout-wg-looks-working.png)
+![Скан wg в WARPSCOUT без -tun-ping](.github/assets/warpscout-wg-looks-working.png)
 
-With `-P` it turns out every one of them gets cut:
+С `-P` выясняется, что рвут каждый из них:
 
-![WARPSCOUT wg scan with -tun-ping](.github/assets/warpscout-wg-torn-down.png)
+![Скан wg в WARPSCOUT с -tun-ping](.github/assets/warpscout-wg-torn-down.png)
 
-Torn-down endpoints are never picked by `-best` or `-conf`. They are shown so you can see how much of the pool your network kills - which is the signal to change `-gen-i1`.
+Разорванные эндпоинты никогда не попадают в `-best` и `-conf`. Показываются они затем, чтобы было видно, какую часть пула режет сеть - это сигнал сменить `-gen-i1`.
 
-## Commands
+## Команды
 
-| Command     | What it does                                                    |
-| ----------- | ----------------------------------------------------------------- |
-| `register`  | Create a WARP account and save it. Start here                     |
-| `scan`      | Scan the endpoints and show the working ones                      |
-| `find-junk` | Search for AmneziaWG parameters that get past the filter          |
-| `find-sni`  | Search for a MASQUE SNI that gets past the filter                 |
-| `socks`     | Serve one endpoint as a local SOCKS5 proxy, to test it            |
-| `version`   | Print the installed version                                       |
+| Команда     | Что делает                                                         |
+| ----------- | ------------------------------------------------------------------ |
+| `register`  | Создать аккаунт WARP и сохранить его. Начинать нужно с этого       |
+| `scan`      | Просканировать эндпоинты и показать рабочие                        |
+| `find-junk` | Подобрать настройки AmneziaWG, которые проходят через фильтр       |
+| `find-sni`  | Подобрать SNI для MASQUE, который проходит через фильтр            |
+| `socks`     | Отдать один эндпоинт локальным SOCKS5-прокси, чтобы проверить его  |
+| `version`   | Напечатать установленную версию                                    |
 
-## Useful flags
+## Полезные флаги
 
-| Flag                    | What it does                                                                                  |
-| ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `-p, -proto`            | Protocol: `wg`, `awg`, `masque`, `masque-h2` (default `wg`)                                       |
-| `-P, -tun-ping`         | Measure latency and loss inside the tunnel, and weed out torn-down endpoints                      |
-| `-best`                 | Print one best `ip:port` instead of the tables                                                    |
-| `-conf FILE`            | Write a ready config for the best endpoint (`-conf -` prints it instead)                          |
-| `-node`, `-country`     | Keep only these nodes or countries, comma-separated                                               |
-| `-exclude-node`, `-exclude-country` | Drop them instead. Stacks with the two above                                          |
-| `-n, -sample N`         | Addresses to try per subnet (default 5)                                                           |
-| `-f, -full`             | Try every address of every subnet. Slow but thorough                                              |
-| `-speed`                | Add the `SPEED` column - a download test. Noticeably slower                                       |
-| `-6, -ipv6`             | Scan IPv6 endpoints instead of IPv4                                                               |
-| `-o FILE`, `-no-report` | Where to write the report file, or skip it entirely                                               |
-| `-emoji`                | Show country flags next to regions                                                                |
-| `-t, -timeout N`        | Per-request timeout in seconds (default 2)                                                        |
-| `-jt N`                 | How many tunnels to bring up at once (default 10)                                                 |
+| Флаг                    | Что делает                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `-p, -proto`            | Протокол: `wg`, `awg`, `masque`, `masque-h2` (по умолчанию `wg`)                                |
+| `-P, -tun-ping`         | Измерить задержку и потери внутри туннеля, отсеять оборванные эндпоинты                         |
+| `-best`                 | Вместо таблиц напечатать один лучший адрес `ip:port`                                            |
+| `-conf FILE`            | Записать готовый конфиг для лучшего эндпоинта (`-conf -` печатает его в терминал)               |
+| `-node`, `-country`     | Оставить только эти ноды или страны, списком через запятую                                      |
+| `-exclude-node`, `-exclude-country` | Наоборот, выбросить их. Складывается с предыдущими                                 |
+| `-n, -sample N`         | Сколько адресов пробовать в каждой подсети (по умолчанию 5)                                     |
+| `-f, -full`             | Пробовать все адреса каждой подсети. Долго, но тщательно                                        |
+| `-speed`                | Добавить колонку `SPEED` - замер скорости скачивания. Заметно дольше                            |
+| `-6, -ipv6`             | Сканировать IPv6-эндпоинты вместо IPv4                                                          |
+| `-o FILE`, `-no-report` | Куда писать файл отчёта или не писать вовсе                                                     |
+| `-emoji`                | Показывать флаги стран рядом с регионами                                                        |
+| `-t, -timeout N`        | Таймаут на запрос в секундах (по умолчанию 2)                                                   |
+| `-jt N`                 | Сколько туннелей поднимать одновременно (по умолчанию 10)                                       |
 
-The full flag list of any command is `warpscout <command> -h`, for example `.\warpscout.exe scan -h`.
+Полный список флагов любой команды - `warpscout <команда> -h`, например `.\warpscout.exe scan -h`.
 
-## Going further
+## Что дальше
 
-- [How it works](docs/en/how-it-works.md) - the scan phases, region versus node, checking a VPS region
-- [The WARP account](docs/en/account.md) - what `register` does, what the account file holds, registering from a blocked network
-- [Getting past blocking](docs/en/blocking.md) - AmneziaWG obfuscation, `-gen-i1`, junk packets, `find-junk`
-- [MASQUE](docs/en/masque.md) - `-p masque` and `-p masque-h2`, picking an SNI, usque configs
-- [Configs and filters](docs/en/configs.md) - `-conf` formats, DNS and MTU, `-target`, the speed phase, the report format
-- [SOCKS5 proxy](docs/en/socks.md) - check one endpoint with third-party services
-- [WARP-in-WARP](docs/en/warp-in-warp.md) - scanning from inside another WARP tunnel
-- [Docker](docs/en/docker.md) - running in a container
-- [Troubleshooting](docs/en/troubleshooting.md) - `ENDPOINT PING` shows `?`, the tool gets killed on a router, macOS refuses to run it
+- [Как это работает](docs/ru/how-it-works.md) - фазы скана, чем регион отличается от ноды, проверка региона VPS
+- [Аккаунт WARP](docs/ru/account.md) - что делает `register`, что лежит в файле аккаунта, регистрация из заблокированной сети
+- [Обход блокировок](docs/ru/blocking.md) - маскировка AmneziaWG, `-gen-i1`, junk-пакеты, `find-junk`
+- [MASQUE](docs/ru/masque.md) - `-p masque` и `-p masque-h2`, подбор SNI, конфиги usque
+- [Конфиги и фильтры](docs/ru/configs.md) - форматы `-conf`, DNS и MTU, `-target`, замер скорости, формат отчёта
+- [SOCKS5-прокси](docs/ru/socks.md) - проверить конкретный эндпоинт сторонними сервисами
+- [WARP-in-WARP](docs/ru/warp-in-warp.md) - скан изнутри другого туннеля WARP
+- [Docker](docs/ru/docker.md) - запуск в контейнере
+- [Решение проблем](docs/ru/troubleshooting.md) - `ENDPOINT PING` показывает `?`, программу убивают на роутере, macOS не запускает файл
 
-## Credits
+## Благодарности
 
-- [Cloudflare](https://one.one.one.one/) - for WARP itself, obviously
-- [puzige/CloudflareWarpSpeedTest](https://github.com/puzige/CloudflareWarpSpeedTest) - the alternate port sweep and the in-tunnel RTT/loss measurement
-- [ampetelin/warp-endpoint-checker](https://github.com/ampetelin/warp-endpoint-checker) - the list of WARP IPv4 subnets
-- [TheyCallMeSecond/WARP-Endpoint-IP](https://github.com/TheyCallMeSecond/WARP-Endpoint-IP) - the list of WARP IPv6 subnets
-- [SagePtr/mini_quic_generator](https://github.com/SagePtr/mini_quic_generator) - the QUIC Initial packet builder, ported for the `quic` I1 profile
-- [Diniboy1123/usque](https://github.com/Diniboy1123/usque) - the WARP MASQUE client implementation `-p masque` is built on
-- [nellimonix/base-relay](https://github.com/nellimonix/base-relay) - the reverse proxy the registration fallback runs on
-- [amnezia-vpn/amneziawg-go](https://github.com/amnezia-vpn/amneziawg-go) - the userspace AmneziaWG implementation
-- [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) - the framework the live dashboard is built on
+- [Cloudflare](https://one.one.one.one/) - очевидно, за сам WARP
+- [puzige/CloudflareWarpSpeedTest](https://github.com/puzige/CloudflareWarpSpeedTest) - запасной перебор портов и измерение RTT и потерь внутри туннеля
+- [ampetelin/warp-endpoint-checker](https://github.com/ampetelin/warp-endpoint-checker) - список IPv4-подсетей WARP
+- [TheyCallMeSecond/WARP-Endpoint-IP](https://github.com/TheyCallMeSecond/WARP-Endpoint-IP) - список IPv6-подсетей WARP
+- [SagePtr/mini_quic_generator](https://github.com/SagePtr/mini_quic_generator) - сборка QUIC Initial-пакета, портированная для профиля I1 `quic`
+- [Diniboy1123/usque](https://github.com/Diniboy1123/usque) - реализация MASQUE-клиента WARP, на которой построен `-p masque`
+- [nellimonix/base-relay](https://github.com/nellimonix/base-relay) - обратный прокси, на котором работает фолбек для регистрации WARP аккаунта
+- [amnezia-vpn/amneziawg-go](https://github.com/amnezia-vpn/amneziawg-go) - реализация AmneziaWG в пространстве пользователя
+- [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) - фреймворк, на котором сделана живая панель
 
-## Support the author
+## Поддержать автора
 
 <p align="center">
   <a href="https://pay.cloudtips.ru/p/327ef017"><img src="https://static.tildacdn.com/tild3465-3233-4263-b937-316135666261/Horiz.svg" height="40" alt="CloudTips"></a>

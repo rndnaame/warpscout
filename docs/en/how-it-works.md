@@ -1,6 +1,6 @@
 # How it works
 
-[← Back to README](../../README.md)
+[← Back to README](../../README_en.md)
 
 ## The two scan phases
 

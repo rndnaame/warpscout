@@ -1,6 +1,6 @@
 # Getting past blocking
 
-[← Back to README](../../README.md)
+[← Back to README](../../README_en.md)
 
 DPI recognises WireGuard by its handshake. AmneziaWG (`-p awg`) breaks that in two ways: it mixes junk packets into the real traffic, and it opens the connection with a made-up first packet (`I1`) pretending to be a protocol nobody blocks.
 

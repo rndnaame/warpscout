@@ -1,6 +1,6 @@
 # Аккаунт WARP
 
-[← Назад к README](../../README_RU.md)
+[← Назад к README](../../README.md)
 
 ```sh
 warpscout register

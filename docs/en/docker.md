@@ -1,6 +1,6 @@
 # Docker
 
-[← Back to README](../../README.md)
+[← Back to README](../../README_en.md)
 
 The image is multi-arch (`linux/amd64` and `linux/arm64`). The container's working directory is `/data`, and the account file goes there.
 

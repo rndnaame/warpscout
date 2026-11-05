@@ -1,6 +1,6 @@
 # MASQUE
 
-[← Назад к README](../../README_RU.md)
+[← Назад к README](../../README.md)
 
 Cloudflare раздаёт WARP не только по WireGuard, но и по MASQUE. Это отдельный транспорт со своими адресами, и он бывает двух видов:
 
