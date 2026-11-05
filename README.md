@@ -41,6 +41,14 @@
 
 ## Установка
 
+### Роутеры с Entware (Keenetic / Netcraze)
+
+Установка одной командой через интерактивное меню-инсталлятор (подбор бинарника под архитектуру роутера, mipsel/arm):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rndnaame/warpscout/refs/heads/master/installer_warpscout.sh | sh
+```
+
 ### Windows
 
 1. Откройте [страницу релизов](https://github.com/vernette/warpscout/releases) и скачайте `warpscout_..._windows_amd64.zip`.

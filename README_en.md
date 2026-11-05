@@ -41,6 +41,14 @@ The official WARP client gives you no way to pick the node. WARPSCOUT walks the 
 
 ## Installation
 
+### Routers with Entware (Keenetic / Netcraze)
+
+One-line install via an interactive menu installer (picks the right binary for the router architecture, mipsel/arm):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rndnaame/warpscout/refs/heads/master/installer_warpscout.sh | sh
+```
+
 ### Windows
 
 1. Open the [releases page](https://github.com/vernette/warpscout/releases) and download `warpscout_..._windows_amd64.zip`.
