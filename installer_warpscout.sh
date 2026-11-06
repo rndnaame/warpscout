@@ -19,7 +19,7 @@
 #   sh installer_warpscout.sh
 #   curl -fsSL https://raw.githubusercontent.com/rndnaame/nfqws-menu/main/installer_warpscout.sh | sh
 
-SCRIPT_VERSION="0.1.50"
+SCRIPT_VERSION="0.1.59"
 
 # ANSI (portable для ash/BusyBox)
 RED=$(printf '\033[0;31m')
@@ -2473,6 +2473,105 @@ do_remove() {
 # ---------------------------------------------------------------------------
 # Показать сохранённый conf (+ опционально QR, если есть qrencode)
 # ---------------------------------------------------------------------------
+
+
+# Компактный conf для QR (меньше байт → меньше модулей → влезает в узкий терминал)
+conf_for_qr() {
+  conf="$1"
+  [ -f "$conf" ] || return 1
+  # вытащить поля и собрать без пробелов вокруг =; без S/H (дефолты клиента)
+  _pk=$(grep -iE '^[[:space:]]*PrivateKey[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _addr=$(grep -iE '^[[:space:]]*Address[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _dns=$(grep -iE '^[[:space:]]*DNS[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _mtu=$(grep -iE '^[[:space:]]*MTU[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _jc=$(grep -iE '^[[:space:]]*Jc[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _jmin=$(grep -iE '^[[:space:]]*Jmin[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _jmax=$(grep -iE '^[[:space:]]*Jmax[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _i1=$(grep -iE '^[[:space:]]*I1[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _pub=$(grep -iE '^[[:space:]]*PublicKey[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _ep=$(grep -iE '^[[:space:]]*Endpoint[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _aip=$(grep -iE '^[[:space:]]*AllowedIPs[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  _pka=$(grep -iE '^[[:space:]]*PersistentKeepalive[[:space:]]*=' "$conf" | head -1 | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+  [ -n "$_pk" ] && [ -n "$_pub" ] && [ -n "$_ep" ] || return 1
+  [ -n "$_dns" ] || _dns="1.1.1.1"
+  [ -n "$_mtu" ] || _mtu="1280"
+  [ -n "$_aip" ] || _aip="0.0.0.0/0"
+  [ -n "$_pka" ] || _pka="25"
+  {
+    printf '%s\n' "[Interface]"
+    printf 'PrivateKey=%s\n' "$_pk"
+    [ -n "$_addr" ] && printf 'Address=%s\n' "$_addr"
+    printf 'DNS=%s\n' "$_dns"
+    printf 'MTU=%s\n' "$_mtu"
+    [ -n "$_jc" ] && printf 'Jc=%s\n' "$_jc"
+    [ -n "$_jmin" ] && printf 'Jmin=%s\n' "$_jmin"
+    [ -n "$_jmax" ] && printf 'Jmax=%s\n' "$_jmax"
+    # AmneziaVPN: без S/H часто ErrorCode 1000
+    printf 'S1=0\nS2=0\nS3=0\nS4=0\n'
+    printf 'H1=1\nH2=2\nH3=3\nH4=4\n'
+    [ -n "$_i1" ] && printf 'I1=%s\n' "$_i1"
+    printf '%s\n' "[Peer]"
+    printf 'PublicKey=%s\n' "$_pub"
+    printf 'Endpoint=%s\n' "$_ep"
+    printf 'AllowedIPs=%s\n' "$_aip"
+    printf 'PersistentKeepalive=%s\n' "$_pka"
+  }
+}
+
+ensure_qrencode() {
+  export PATH="/opt/bin:/opt/sbin:${PATH}"
+  if command -v qrencode >/dev/null 2>&1 || [ -x /opt/bin/qrencode ]; then
+    return 0
+  fi
+  if ! command -v opkg >/dev/null 2>&1; then
+    error "Нет qrencode и нет opkg — QR недоступен."
+    return 1
+  fi
+  info "Установка qrencode (opkg install qrencode)…"
+  if ! opkg install qrencode 2>&1; then
+    warn "opkg install qrencode не удался — пробуем update…"
+    opkg update 2>/dev/null || true
+    if ! opkg install qrencode 2>&1; then
+      error "Не удалось установить qrencode."
+      return 1
+    fi
+  fi
+  hash -r 2>/dev/null || true
+  if ! command -v qrencode >/dev/null 2>&1 && [ ! -x /opt/bin/qrencode ]; then
+    error "qrencode установлен, но не найден в PATH."
+    return 1
+  fi
+  info "qrencode установлен."
+  return 0
+}
+
+
+# QR в терминал: всегда компактный (-m 1 -l L)
+print_qr_file() {
+  f="$1"
+  _qr=qrencode
+  command -v qrencode >/dev/null 2>&1 || _qr=/opt/bin/qrencode
+  [ -x "$_qr" ] || _qr=/opt/bin/qrencode
+
+  printf '\n'
+  ok=0
+  if "$_qr" -t ANSIUTF8 -m 1 -l L < "$f" 2>/dev/null; then
+    ok=1
+  elif "$_qr" -t UTF8 -m 1 -l L < "$f" 2>/dev/null; then
+    ok=1
+  elif "$_qr" -t ANSI -m 1 -l L < "$f" 2>/dev/null; then
+    ok=1
+  elif "$_qr" -t ASCII -m 1 -l L < "$f" 2>/dev/null; then
+    ok=1
+  fi
+  printf '\n'
+  if [ "$ok" != "1" ]; then
+    error "qrencode не смог построить QR."
+    return 1
+  fi
+  return 0
+}
+
 do_show_conf() {
   echo
   info "Сохранённый конфиг"
@@ -2506,47 +2605,22 @@ do_show_conf() {
     return 0
   fi
 
-  if ! command -v qrencode >/dev/null 2>&1; then
-    if ! command -v opkg >/dev/null 2>&1; then
-      error "Нет qrencode и нет opkg — QR недоступен."
-      return 1
-    fi
-    info "Установка qrencode (opkg install qrencode)…"
-    # PATH Entware
-    export PATH="/opt/bin:/opt/sbin:${PATH}"
-    if ! opkg install qrencode 2>&1; then
-      warn "opkg install qrencode не удался — пробуем update…"
-      opkg update 2>/dev/null || true
-      if ! opkg install qrencode 2>&1; then
-        error "Не удалось установить qrencode."
-        return 1
-      fi
-    fi
-    hash -r 2>/dev/null || true
-    if ! command -v qrencode >/dev/null 2>&1; then
-      # иногда бинарь только в /opt/bin
-      if [ -x /opt/bin/qrencode ]; then
-        :
-      else
-        error "qrencode установлен, но не найден в PATH."
-        return 1
-      fi
-    fi
-    info "qrencode установлен."
+  ensure_tmpdir
+  if ! ensure_qrencode; then
+    return 1
   fi
 
-  info "QR (qrencode -t ANSIUTF8)…"
-  if [ "$sz" -gt 1200 ]; then
-    warn "Conf большой (${sz} байт) — QR может не читаться камерой."
+  # Компактный conf → меньше модулей QR (удобнее на телефоне)
+  qf="$TMPDIR/qr-conf.txt"
+  if ! conf_for_qr "$CONF_OUT" > "$qf" 2>/dev/null; then
+    warn "Сборка компактного conf не удалась — QR из файла как есть."
+    cp -f "$CONF_OUT" "$qf" 2>/dev/null || cat "$CONF_OUT" > "$qf"
+  else
+    info "QR: компактный conf (S/H для Amnezia)"
   fi
-  _qr=qrencode
-  command -v qrencode >/dev/null 2>&1 || _qr=/opt/bin/qrencode
-  if ! "$_qr" -t ANSIUTF8 < "$CONF_OUT" 2>/dev/null; then
-    if ! "$_qr" -t ANSI < "$CONF_OUT" 2>/dev/null; then
-      error "qrencode не смог построить QR."
-      return 1
-    fi
-  fi
+
+  echo
+  print_qr_file "$qf" || return 1
   return 0
 }
 
