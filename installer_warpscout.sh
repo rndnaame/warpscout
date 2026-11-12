@@ -19,7 +19,7 @@
 #   sh installer_warpscout.sh
 #   curl -fsSL https://raw.githubusercontent.com/rndnaame/nfqws-menu/main/installer_warpscout.sh | sh
 
-SCRIPT_VERSION="0.1.75"
+SCRIPT_VERSION="0.1.81"
 
 # ANSI (portable для ash/BusyBox)
 RED=$(printf '\033[0;31m')
@@ -410,13 +410,22 @@ print_tunnel_menu_line() {
   else
     _ncol="$DIM"
   fi
-  printf '  %s%d)%s  %-8s' "$BOLD" "$_n" "$NC" "$_key"
+  # строка 1: номер + ifc + имя
+  printf '  %s%d)%s %s' "$BOLD" "$_n" "$NC" "$_key"
   if [ -n "$_name" ] && [ "$_name" != "$_key" ]; then
     printf ' · %s%s%s' "$_ncol" "$_name" "$NC"
   fi
-  [ -n "$_addr" ] && printf ' · %s' "$_addr"
-  [ -n "$_ep" ] && printf ' · %s%s%s' "$CYAN" "$_ep" "$NC"
   printf '  %s[%s]%s\n' "$DIM" "$_st" "$NC"
+  # строка 2: addr / endpoint (если есть)
+  if [ -n "$_addr" ] || [ -n "$_ep" ]; then
+    printf '      '
+    [ -n "$_addr" ] && printf '%s' "$_addr"
+    if [ -n "$_ep" ]; then
+      [ -n "$_addr" ] && printf ' · '
+      printf '%s%s%s' "$CYAN" "$_ep" "$NC"
+    fi
+    printf '\n'
+  fi
 }
 
 
@@ -451,34 +460,27 @@ is_awg_manager_installed() {
 }
 
 show_status() {
-  st=""
+  # компактно, но по смыслу группами
+  a=""
   if is_installed; then
     ver=$(installed_version 2>/dev/null) || ver=""
-    st="bin ${ver:-ok}"
-  fi
-  if has_account; then
-    st="${st:+$st, }аккаунт ✓"
+    a="bin ${ver:-ok}"
   else
-    st="${st:+$st, }аккаунт ✗"
+    a="bin ✗"
   fi
+  if has_account; then a="$a · аккаунт ✓"; else a="$a · аккаунт ✗"; fi
+
+  b=""
   if [ -f "$SCAN_OUT" ] && [ -s "$SCAN_OUT" ]; then
     n=$(wc -l < "$SCAN_OUT" 2>/dev/null | tr -d ' ')
-    st="${st:+$st, }list ${n:-?} строк"
+    b="list ${n:-?}"
   fi
-  if has_conf; then
-    st="${st:+$st, }conf ✓"
-  fi
-  if [ -f "$JUNK_FILE" ] && [ -s "$JUNK_FILE" ]; then
-    st="${st:+$st, }junk ✓"
-  fi
-  if is_awg_manager_installed; then
-    st="${st:+$st, }awg-manager ✓"
-  fi
-  if [ -n "$st" ]; then
-    info "Обнаружено: $st"
-  else
-    printf '%s\n' "${DIM}Не установлено${NC}"
-  fi
+  if has_conf; then b="${b:+$b · }conf ✓"; fi
+  if [ -f "$JUNK_FILE" ] && [ -s "$JUNK_FILE" ]; then b="${b:+$b · }junk ✓"; fi
+  if is_awg_manager_installed; then b="${b:+$b · }awg-manager ✓"; fi
+
+  printf '  %s%s%s\n' "$GREEN" "$a" "$NC"
+  [ -n "$b" ] && printf '  %s%s%s\n' "$DIM" "$b" "$NC"
 }
 
 # ---------------------------------------------------------------------------
@@ -2723,37 +2725,40 @@ do_show_conf() {
 main_menu() {
   while true; do
     clear 2>/dev/null || true
+    # --- шапка ---
     printf '%s\n' "${CYAN}================================================${NC}"
     printf '%s\n' "${CYAN}${BOLD}           warpscout  v${SCRIPT_VERSION}${NC}"
     printf '%s\n' "${CYAN}================================================${NC}"
     echo
-    printf '%s\n' "${DIM}  Поиск рабочих эндпоинтов Cloudflare WARP${NC}"
-    printf '%s\n' "${DIM}  https://github.com/${GITHUB_REPO}  (mipsel+arm)${NC}"
-    printf '%s\n' "${DIM}  upstream: github.com/${OFFICIAL_REPO}  ·  fallback pin v${PIN_VERSION}${NC}"
-    printf '%s\n' "${DIM}  bin → ${BIN}${NC}"
+    printf '%s\n' "  ${BOLD}Поиск рабочих эндпоинтов Cloudflare WARP${NC}"
+    printf '%s\n' "  ${DIM}репозиторий  github.com/${GITHUB_REPO}${NC}"
+    printf '%s\n' "  ${DIM}upstream     github.com/${OFFICIAL_REPO}${NC}"
+    printf '%s\n' "  ${DIM}pin / bin    v${PIN_VERSION}  →  ${BIN}${NC}"
     echo
     show_status
     echo
+    # --- основное ---
     printf '%s\n' "${DIM}  ──────────────────────────────────────────${NC}"
-    echo "  1) Установка / обновление warpscout"
-    echo "  2) Создать аккаунт (register)"
-    echo "  3) Сканирование адресов (AWG → list + conf)"
-    echo "  4) Автоматический поиск / apply junk (find-junk)"
+    echo "  1) Установка / обновление"
+    echo "  2) Создать аккаунт"
+    echo "  3) Поиск endpoint          ${DIM}scan → list + conf${NC}"
+    echo "  4) Подбор маскировки       ${DIM}junk (Jc/Jmin/I1)${NC}"
     if is_awg_manager_installed; then
-      echo "  5) Применить conf в awg-manager"
+      echo "  5) Применить conf          ${DIM}в awg-manager${NC}"
     else
-      printf '  %s5) Применить conf в awg-manager%s  %s(нужен awg-manager)%s\n' \
-        "$DIM" "$NC" "$DIM" "$NC"
+      printf '  %s5) Применить conf          в awg-manager%s\n' "$DIM" "$NC"
+      printf '     %sнужен пакет awg-manager%s\n' "$DIM" "$NC"
     fi
     echo "  6) Проверка туннеля"
     if has_conf; then
-      echo "  7) Показать сохранённый conf"
+      echo "  7) Показать conf / QR"
     else
-      printf '  %s7) Показать сохранённый conf%s  %s(нет conf)%s\n' "$DIM" "$NC" "$DIM" "$NC"
+      printf '  %s7) Показать conf / QR%s\n' "$DIM" "$NC"
+      printf '     %sнет сохранённого conf%s\n' "$DIM" "$NC"
     fi
     printf '%s\n' "${DIM}  ──────────────────────────────────────────${NC}"
     echo "  88) Удаление"
-    echo "  0) Выход"
+    echo "  0)  Выход"
     printf '%s\n' "${DIM}  ──────────────────────────────────────────${NC}"
     echo
     printf '  %sВыбор:%s ' "$BOLD" "$NC"
