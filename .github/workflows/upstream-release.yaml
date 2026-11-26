@@ -133,6 +133,10 @@ jobs:
 
       - name: Create and push release tag
         if: steps.meta.outputs.need_release == 'true'
+        env:
+          # GITHUB_TOKEN не запускает другие workflows при push tag.
+          # Добавьте secret RELEASE_TOKEN (PAT: repo) — тогда release.yaml стартует сам.
+          PUSH_TOKEN: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
         run: |
           set -e
           TAG="${{ steps.meta.outputs.tag }}"
@@ -142,7 +146,7 @@ jobs:
 
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
             if [ "${{ inputs.force_tag }}" = "true" ]; then
-              git push origin ":refs/tags/$TAG" || true
+              git push "https://x-access-token:${PUSH_TOKEN}@github.com/${{ github.repository }}.git" ":refs/tags/$TAG" || true
             else
               echo "Tag $TAG already on origin"
               exit 0
@@ -153,5 +157,10 @@ jobs:
 
           - PIN_VERSION=${VER} in installer_warpscout.sh
           - builds via release.yaml"
-          git push origin "$TAG"
-          echo "Pushed tag $TAG — release workflow should start"
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${{ github.repository }}.git" "$TAG"
+          echo "Pushed tag $TAG"
+          if [ "${PUSH_TOKEN}" = "${{ github.token }}" ]; then
+            echo "::warning::Tag pushed with GITHUB_TOKEN — release.yaml may NOT auto-start. Add secret RELEASE_TOKEN (PAT with repo scope)."
+          else
+            echo "Tag pushed with RELEASE_TOKEN — release.yaml should start"
+          fi
