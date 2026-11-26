@@ -1,0 +1,169 @@
+# При новом релизе vernette/warpscout:
+#  1) merge upstream/master в master (installer + workflows форка сохраняются)
+#  2) PIN_VERSION в installer_warpscout.sh = версия upstream
+#  3) tag vX.Y.Z → срабатывает release.yaml (сборки mipsle/arm64/…)
+name: Upstream sync and release
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_tag:
+        description: "Пересоздать tag даже если уже есть (осторожно)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: upstream-release
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      need_release: ${{ steps.meta.outputs.need_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/vernette/warpscout.git
+          git fetch upstream master --tags
+          git fetch origin master --tags
+
+      - name: Resolve upstream latest release
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG=$(gh api repos/vernette/warpscout/releases/latest --jq .tag_name)
+          # fallback: последний tag upstream
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
+            # from upstream remote tags
+            TAG=$(git ls-remote --tags upstream 'v*' | sed 's|.*refs/tags/||;s|\^{}||' | grep -E '^v[0-9]' | sort -V | tail -1)
+          fi
+          VER="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Upstream latest: $TAG"
+
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            EXISTS=true
+          elif git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            EXISTS=true
+          else
+            EXISTS=false
+          fi
+          echo "tag_exists_on_fork=$EXISTS"
+
+          FORCE="${{ inputs.force_tag }}"
+          if [ "$EXISTS" = "true" ] && [ "$FORCE" != "true" ]; then
+            echo "need_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "need_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          BEHIND=$(git rev-list --count HEAD..upstream/master)
+          echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
+
+      - name: Merge upstream and bump PIN
+        if: steps.meta.outputs.need_release == 'true' || steps.meta.outputs.behind != '0'
+        id: merge
+        run: |
+          set -e
+          TAG="${{ steps.meta.outputs.tag }}"
+          VER="${{ steps.meta.outputs.version }}"
+          git checkout master
+          git reset --hard origin/master
+
+          set +e
+          git merge --no-edit -m "merge: vernette/warpscout ${TAG:-master}" upstream/master
+          rc=$?
+          set -e
+
+          if [ "$rc" -ne 0 ]; then
+            git status --porcelain | while read -r st f; do
+              case "$st" in UU|AA|DU|UD|UA|AU|DD) ;; *) continue ;; esac
+              [ -n "$f" ] || continue
+              case "$f" in
+                installer_warpscout.sh|.github/workflows/*)
+                  git checkout --ours -- "$f" || true
+                  git add -- "$f" || true
+                  ;;
+                *)
+                  git checkout --theirs -- "$f" || true
+                  git add -- "$f" || true
+                  ;;
+              esac
+            done
+            if git diff --name-only --diff-filter=U | grep -q .; then
+              git diff --name-only --diff-filter=U
+              exit 1
+            fi
+            git commit -m "merge: vernette/warpscout ${TAG:-master} (auto-resolved)" || true
+          fi
+
+          # не трогаем workflow-файлы (нет scope workflows у GITHUB_TOKEN)
+          git checkout origin/master -- .github/workflows/ 2>/dev/null || true
+          if ! git diff --quiet HEAD -- .github/workflows/ 2>/dev/null; then
+            git add .github/workflows/
+            git commit -m "chore: keep fork workflows" || true
+          fi
+
+          # installer: база с форка + PIN = upstream version
+          if git show origin/master:installer_warpscout.sh >/dev/null 2>&1; then
+            git checkout origin/master -- installer_warpscout.sh
+          fi
+          if [ -f installer_warpscout.sh ] && [ -n "$VER" ]; then
+            sed -i "s/^PIN_VERSION=.*/PIN_VERSION=\"${VER}\"/" installer_warpscout.sh
+            # комментарий рядом с resolve_ws_version, если есть старый pin в комментарии
+            sed -i "s/pin 0\\.[0-9.]\\+/pin ${VER}/g" installer_warpscout.sh || true
+            git add installer_warpscout.sh
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: PIN_VERSION=${VER} (upstream ${TAG})"
+            fi
+          fi
+
+          git push origin master
+
+      - name: Create and push release tag
+        if: steps.meta.outputs.need_release == 'true'
+        run: |
+          set -e
+          TAG="${{ steps.meta.outputs.tag }}"
+          VER="${{ steps.meta.outputs.version }}"
+          git checkout master
+          git pull --ff-only origin master
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            if [ "${{ inputs.force_tag }}" = "true" ]; then
+              git tag -d "$TAG" || true
+              git push origin ":refs/tags/$TAG" || true
+            else
+              echo "Tag $TAG already local"
+              exit 0
+            fi
+          fi
+
+          git tag -a "$TAG" -m "Release ${TAG} (synced from vernette/warpscout)
+
+          - PIN_VERSION=${VER} in installer_warpscout.sh
+          - builds: linux mipsle (softfloat), arm64, amd64, …"
+          git push origin "$TAG"
+          echo "Pushed tag $TAG — release workflow should start"
