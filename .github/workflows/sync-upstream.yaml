@@ -1,13 +1,12 @@
 # Синхронизация форка rndnaame/warpscout ← vernette/warpscout
-# - раз в сутки + вручную (workflow_dispatch)
-# - merge upstream/master в ветку sync/upstream-YYYYMMDD
-# - installer_warpscout.sh при конфликте оставляем наш (fork)
-# - открывает PR в master (без force-push в master)
+# - код сканера из upstream
+# - installer_warpscout.sh и .github/workflows/* остаются от форка
+#   (GITHUB_TOKEN не может пушить правки workflow без scope workflows)
 name: Sync upstream
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # 09:00 MSK
+    - cron: "0 6 * * *"
   workflow_dispatch:
     inputs:
       open_pr:
@@ -31,7 +30,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure git
         run: |
@@ -69,34 +67,52 @@ jobs:
           git checkout -B "$BRANCH" origin/master
 
           set +e
-          git merge --no-edit upstream/master
+          git merge --no-edit -m "merge: vernette/warpscout master" upstream/master
           rc=$?
           set -e
 
           if [ "$rc" -ne 0 ]; then
-            echo "Merge conflicts — resolve preferring fork for installer / custom CI"
-            # Наш installer и (при желании) release softfloat-имя — не затираем upstream'ом
-            for f in installer_warpscout.sh; do
-              if [ -f "$f" ] && git status --porcelain | grep -q "^.U $f\|UU $f\|AA $f\|DU $f\|UD $f"; then
-                git checkout --ours -- "$f" 2>/dev/null || true
-                git add -- "$f" 2>/dev/null || true
-                echo "kept fork version: $f"
-              fi
-            done
-            # Остальные конфликты: берём upstream (код сканера)
-            git status --porcelain | awk '/^(UU|AA|DU|UD|UA|AU)/ {print $2}' | while read -r f; do
+            echo "Merge conflicts — resolve"
+            # Конфликты: installer и workflows — наши; остальное — upstream
+            git status --porcelain | while read -r st f; do
+              case "$st" in
+                UU|AA|DU|UD|UA|AU|DD) ;;
+                *) continue ;;
+              esac
               [ -n "$f" ] || continue
-              [ "$f" = "installer_warpscout.sh" ] && continue
-              git checkout --theirs -- "$f" 2>/dev/null || true
-              git add -- "$f" 2>/dev/null || true
-              echo "took upstream: $f"
+              case "$f" in
+                installer_warpscout.sh|.github/workflows/*)
+                  git checkout --ours -- "$f" 2>/dev/null || true
+                  git add -- "$f" 2>/dev/null || true
+                  echo "kept fork: $f"
+                  ;;
+                *)
+                  git checkout --theirs -- "$f" 2>/dev/null || true
+                  git add -- "$f" 2>/dev/null || true
+                  echo "took upstream: $f"
+                  ;;
+              esac
             done
-            if ! git diff --name-only --diff-filter=U | grep -q .; then
-              git commit -m "merge: vernette/warpscout master (auto, installer kept from fork)"
-            else
+            if git diff --name-only --diff-filter=U | grep -q .; then
               echo "Unresolved conflicts:"
               git diff --name-only --diff-filter=U
               exit 1
+            fi
+            git commit -m "merge: vernette/warpscout master (auto-resolved)"
+          fi
+
+          # GITHUB_TOKEN не имеет scope workflows — не пушим чужие/новые workflow
+          git checkout origin/master -- .github/workflows/ 2>/dev/null || true
+          if ! git diff --quiet HEAD -- .github/workflows/ 2>/dev/null; then
+            git add .github/workflows/
+            git commit -m "chore: keep fork .github/workflows after upstream merge" || true
+          fi
+          # installer всегда наш (на случай clean merge, затёршего файл)
+          if git show origin/master:installer_warpscout.sh >/dev/null 2>&1; then
+            git checkout origin/master -- installer_warpscout.sh
+            if ! git diff --quiet HEAD -- installer_warpscout.sh 2>/dev/null; then
+              git add installer_warpscout.sh
+              git commit -m "chore: keep fork installer_warpscout.sh" || true
             fi
           fi
 
@@ -108,7 +124,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${{ steps.merge.outputs.branch }}"
-          # уже открытый PR на эту ветку — не дублируем
           EXISTING=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number' || true)
           if [ -n "$EXISTING" ]; then
             echo "PR #$EXISTING already open"
@@ -119,12 +134,12 @@ jobs:
             --head "$BRANCH" \
             --title "chore: sync upstream vernette/warpscout ($(date -u +%Y-%m-%d))" \
             --body "$(cat <<'BODY'
-          Автоматическая синхронизация с [vernette/warpscout](https://github.com/vernette/warpscout) (`master`).
+          Автосинхронизация с [vernette/warpscout](https://github.com/vernette/warpscout) (`master`).
 
           - Код сканера — из upstream
-          - `installer_warpscout.sh` при конфликте **оставлен из форка**
-          - После merge: при необходимости обновить `PIN_VERSION` в installer и выпустить tag `vX.Y.Z` (release workflow)
+          - `installer_warpscout.sh` и `.github/workflows/*` — **сохранены из форка**
+            (у `GITHUB_TOKEN` нет права менять workflow-файлы)
 
-          Workflow: `.github/workflows/sync-upstream.yaml`
+          После merge PR: при необходимости обновить `PIN_VERSION` в installer и выпустить tag.
           BODY
           )"
