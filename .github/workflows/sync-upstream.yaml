@@ -1,7 +1,6 @@
 # Синхронизация форка rndnaame/warpscout ← vernette/warpscout
 # - код сканера из upstream
 # - installer_warpscout.sh и .github/workflows/* остаются от форка
-#   (GITHUB_TOKEN не может пушить правки workflow без scope workflows)
 name: Sync upstream
 
 on:
@@ -73,7 +72,6 @@ jobs:
 
           if [ "$rc" -ne 0 ]; then
             echo "Merge conflicts — resolve"
-            # Конфликты: installer и workflows — наши; остальное — upstream
             git status --porcelain | while read -r st f; do
               case "$st" in
                 UU|AA|DU|UD|UA|AU|DD) ;;
@@ -101,13 +99,12 @@ jobs:
             git commit -m "merge: vernette/warpscout master (auto-resolved)"
           fi
 
-          # GITHUB_TOKEN не имеет scope workflows — не пушим чужие/новые workflow
+          # GITHUB_TOKEN не имеет scope workflows — не пушим чужие workflow
           git checkout origin/master -- .github/workflows/ 2>/dev/null || true
           if ! git diff --quiet HEAD -- .github/workflows/ 2>/dev/null; then
             git add .github/workflows/
             git commit -m "chore: keep fork .github/workflows after upstream merge" || true
           fi
-          # installer всегда наш (на случай clean merge, затёршего файл)
           if git show origin/master:installer_warpscout.sh >/dev/null 2>&1; then
             git checkout origin/master -- installer_warpscout.sh
             if ! git diff --quiet HEAD -- installer_warpscout.sh 2>/dev/null; then
@@ -117,29 +114,40 @@ jobs:
           fi
 
           git push -u origin "$BRANCH" --force-with-lease
+          echo "Pushed branch: $BRANCH"
+          echo "Compare: https://github.com/${{ github.repository }}/compare/master...${BRANCH}?expand=1"
 
       - name: Open PR
         if: steps.info.outputs.uptodate != 'true' && (github.event_name == 'schedule' || inputs.open_pr)
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${{ steps.merge.outputs.branch }}"
+          REPO="${{ github.repository }}"
           EXISTING=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number' || true)
           if [ -n "$EXISTING" ]; then
             echo "PR #$EXISTING already open"
             exit 0
           fi
-          gh pr create \
+          if gh pr create \
             --base master \
             --head "$BRANCH" \
             --title "chore: sync upstream vernette/warpscout ($(date -u +%Y-%m-%d))" \
-            --body "$(cat <<'BODY'
-          Автосинхронизация с [vernette/warpscout](https://github.com/vernette/warpscout) (`master`).
+            --body "Автосинхронизация с vernette/warpscout (master).
 
-          - Код сканера — из upstream
-          - `installer_warpscout.sh` и `.github/workflows/*` — **сохранены из форка**
-            (у `GITHUB_TOKEN` нет права менять workflow-файлы)
+- Код сканера — из upstream
+- installer_warpscout.sh и .github/workflows/* — из форка
 
-          После merge PR: при необходимости обновить `PIN_VERSION` в installer и выпустить tag.
-          BODY
-          )"
+После merge: при необходимости обновить PIN_VERSION в installer."; then
+            echo "PR created"
+            exit 0
+          fi
+
+          echo "::warning::gh pr create failed (often: Actions cannot open PRs until enabled in repo settings)."
+          echo "Open manually:"
+          echo "https://github.com/${REPO}/compare/master...${BRANCH}?expand=1"
+          echo ""
+          echo "Fix: Settings → Actions → General → Workflow permissions"
+          echo "  1) Read and write permissions"
+          echo "  2) ☑ Allow GitHub Actions to create and approve pull requests"
