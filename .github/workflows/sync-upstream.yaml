@@ -1,0 +1,130 @@
+# Синхронизация форка rndnaame/warpscout ← vernette/warpscout
+# - раз в сутки + вручную (workflow_dispatch)
+# - merge upstream/master в ветку sync/upstream-YYYYMMDD
+# - installer_warpscout.sh при конфликте оставляем наш (fork)
+# - открывает PR в master (без force-push в master)
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 09:00 MSK
+  workflow_dispatch:
+    inputs:
+      open_pr:
+        description: "Создать PR (иначе только ветка)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/vernette/warpscout.git
+          git fetch upstream master
+          git fetch origin master
+
+      - name: Detect divergence
+        id: info
+        run: |
+          BEHIND=$(git rev-list --count HEAD..upstream/master)
+          AHEAD=$(git rev-list --count upstream/master..HEAD)
+          echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
+          echo "ahead=$AHEAD" >> "$GITHUB_OUTPUT"
+          echo "Upstream ahead of fork by $BEHIND commit(s); fork ahead by $AHEAD"
+          if [ "$BEHIND" = "0" ]; then
+            echo "uptodate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "uptodate=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge upstream into sync branch
+        if: steps.info.outputs.uptodate != 'true'
+        id: merge
+        run: |
+          set -e
+          DATE=$(date -u +%Y%m%d)
+          BRANCH="sync/upstream-${DATE}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          git checkout -B "$BRANCH" origin/master
+
+          set +e
+          git merge --no-edit upstream/master
+          rc=$?
+          set -e
+
+          if [ "$rc" -ne 0 ]; then
+            echo "Merge conflicts — resolve preferring fork for installer / custom CI"
+            # Наш installer и (при желании) release softfloat-имя — не затираем upstream'ом
+            for f in installer_warpscout.sh; do
+              if [ -f "$f" ] && git status --porcelain | grep -q "^.U $f\|UU $f\|AA $f\|DU $f\|UD $f"; then
+                git checkout --ours -- "$f" 2>/dev/null || true
+                git add -- "$f" 2>/dev/null || true
+                echo "kept fork version: $f"
+              fi
+            done
+            # Остальные конфликты: берём upstream (код сканера)
+            git status --porcelain | awk '/^(UU|AA|DU|UD|UA|AU)/ {print $2}' | while read -r f; do
+              [ -n "$f" ] || continue
+              [ "$f" = "installer_warpscout.sh" ] && continue
+              git checkout --theirs -- "$f" 2>/dev/null || true
+              git add -- "$f" 2>/dev/null || true
+              echo "took upstream: $f"
+            done
+            if ! git diff --name-only --diff-filter=U | grep -q .; then
+              git commit -m "merge: vernette/warpscout master (auto, installer kept from fork)"
+            else
+              echo "Unresolved conflicts:"
+              git diff --name-only --diff-filter=U
+              exit 1
+            fi
+          fi
+
+          git push -u origin "$BRANCH" --force-with-lease
+
+      - name: Open PR
+        if: steps.info.outputs.uptodate != 'true' && (github.event_name == 'schedule' || inputs.open_pr)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ steps.merge.outputs.branch }}"
+          # уже открытый PR на эту ветку — не дублируем
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number' || true)
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already open"
+            exit 0
+          fi
+          gh pr create \
+            --base master \
+            --head "$BRANCH" \
+            --title "chore: sync upstream vernette/warpscout ($(date -u +%Y-%m-%d))" \
+            --body "$(cat <<'BODY'
+          Автоматическая синхронизация с [vernette/warpscout](https://github.com/vernette/warpscout) (`master`).
+
+          - Код сканера — из upstream
+          - `installer_warpscout.sh` при конфликте **оставлен из форка**
+          - После merge: при необходимости обновить `PIN_VERSION` в installer и выпустить tag `vX.Y.Z` (release workflow)
+
+          Workflow: `.github/workflows/sync-upstream.yaml`
+          BODY
+          )"
